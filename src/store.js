@@ -19,22 +19,31 @@ async function ensureStore() {
 }
 
 export async function readStore() {
+  if (isSupabaseDataEnabled) {
+    return readStoreFromSupabase();
+  }
   await ensureStore();
   const content = await fs.readFile(storePath, "utf8");
   const store = JSON.parse(content.replace(/^\uFEFF/, ""));
-  const settings = isSupabaseDataEnabled ? await readSettingsFromSupabase(store.settings) : store.settings;
+  return normalizeStore(store);
+}
+
+function normalizeStore(store) {
   return {
     ...defaultStore,
     ...store,
     contacts: { ...defaultStore.contacts, ...(store.contacts || {}), address: { ...defaultStore.contacts.address, ...(store.contacts?.address || {}) } },
     indicators: { ...defaultStore.indicators, ...(store.indicators || {}) },
     credits: { ...defaultStore.credits, ...(store.credits || {}) },
-    settings: { ...defaultStore.settings, ...(settings || {}) },
+    settings: { ...defaultStore.settings, ...(store.settings || {}) },
     debts: Array.isArray(store.debts) ? store.debts : []
   };
 }
 
 export async function writeStore(nextStore) {
+  if (isSupabaseDataEnabled) {
+    return writeStoreToSupabase(nextStore);
+  }
   await ensureStore();
   await fs.writeFile(storePath, JSON.stringify(nextStore, null, 2));
   return nextStore;
@@ -115,45 +124,33 @@ export async function updateCredits(payload) {
 }
 
 export async function updateSettings(payload) {
-  if (isSupabaseDataEnabled) {
-    return updateSettingsInSupabase(payload);
-  }
   const store = await readStore();
   store.settings = { ...store.settings, ...payload };
   return writeStore(store);
 }
 
-async function readSettingsFromSupabase(fallback) {
+async function readStoreFromSupabase() {
   const { data, error } = await supabaseData
-    .from("platform_settings")
-    .select("platform_name, logo_url")
+    .from("app_state")
+    .select("payload")
     .eq("singleton", true)
     .maybeSingle();
   if (error) throw error;
-  if (!data) return fallback;
-  return {
-    platformName: data.platform_name || fallback?.platformName,
-    logoUrl: data.logo_url || ""
-  };
+  if (data?.payload) return normalizeStore(data.payload);
+  return writeStoreToSupabase(defaultStore);
 }
 
-async function updateSettingsInSupabase(payload) {
-  const current = await readSettingsFromSupabase(defaultStore.settings);
-  const next = { ...current, ...payload };
+async function writeStoreToSupabase(nextStore) {
+  const payload = normalizeStore(nextStore);
   const { data, error } = await supabaseData
-    .from("platform_settings")
+    .from("app_state")
     .upsert({
       singleton: true,
-      platform_name: next.platformName || "Scoore Admin",
-      logo_url: next.logoUrl || null
+      payload,
+      updated_at: new Date().toISOString()
     }, { onConflict: "singleton" })
-    .select("platform_name, logo_url")
+    .select("payload")
     .single();
   if (error) throw error;
-  return {
-    settings: {
-      platformName: data.platform_name || "Scoore Admin",
-      logoUrl: data.logo_url || ""
-    }
-  };
+  return normalizeStore(data.payload);
 }

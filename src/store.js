@@ -95,15 +95,18 @@ export async function updateIndicators(patch) {
 
 export async function addDebt(payload) {
   const store = await readStore();
+  const content = String(payload.content || payload.details || payload.title || "").trim();
+  const title = content.split("\n").map((line) => line.trim()).find(Boolean) || payload.title || "Divida sem titulo";
   const debt = {
     id: randomUUID(),
-    title: payload.title || "Divida sem titulo",
+    title,
+    content,
     category: payload.category || "DÍVIDAS",
-    amount: payload.amount || "R$ 0,00",
+    amount: payload.amount || "",
     creditor: payload.creditor || "",
     dueDate: payload.dueDate || "",
     status: payload.status || "Aberta",
-    details: payload.details || ""
+    details: content
   };
   store.debts = [debt, ...store.debts];
   await writeStore(store);

@@ -1,3 +1,14 @@
+// monta o endereco em texto livre a partir dos campos estruturados antigos
+export function composeAddress(address = {}) {
+  const streetLine = [address.street, address.number].filter(Boolean).join(", ");
+  return [
+    [streetLine, address.complement].filter(Boolean).join(" - "),
+    address.district ? `Bairro: ${address.district}` : "",
+    [address.city, address.state].filter(Boolean).join(" - "),
+    address.zipCode ? `CEP: ${address.zipCode}` : ""
+  ].filter(Boolean).join("\n");
+}
+
 export const defaultStore = {
   profile: {
     id: "demo-profile",

@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { defaultStore } from "./defaultData.js";
+import { composeAddress, defaultStore } from "./defaultData.js";
 import { isSupabaseDataEnabled, supabaseData } from "./supabase.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -33,12 +33,21 @@ function normalizeStore(store) {
     ...defaultStore,
     ...store,
     profile: { ...defaultStore.profile, ...(store.profile || {}) },
-    contacts: { ...defaultStore.contacts, ...(store.contacts || {}), address: { ...defaultStore.contacts.address, ...(store.contacts?.address || {}) } },
+    contacts: { ...defaultStore.contacts, ...(store.contacts || {}), address: normalizeAddress(store.contacts?.address) },
     indicators: { ...defaultStore.indicators, ...(store.indicators || {}) },
     credits: { ...defaultStore.credits, ...(store.credits || {}) },
     settings: { ...defaultStore.settings, ...(store.settings || {}) },
     debts: Array.isArray(store.debts) ? store.debts : []
   };
+}
+
+function normalizeAddress(address) {
+  const merged = { ...defaultStore.contacts.address, ...(address || {}) };
+  // enderecos gravados antes do campo unico continuam funcionando
+  if (typeof merged.fullText !== "string") {
+    merged.fullText = composeAddress(merged);
+  }
+  return merged;
 }
 
 export async function writeStore(nextStore) {

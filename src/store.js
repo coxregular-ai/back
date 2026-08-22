@@ -32,6 +32,7 @@ function normalizeStore(store) {
   return {
     ...defaultStore,
     ...store,
+    profile: { ...defaultStore.profile, ...(store.profile || {}) },
     contacts: { ...defaultStore.contacts, ...(store.contacts || {}), address: { ...defaultStore.contacts.address, ...(store.contacts?.address || {}) } },
     indicators: { ...defaultStore.indicators, ...(store.indicators || {}) },
     credits: { ...defaultStore.credits, ...(store.credits || {}) },

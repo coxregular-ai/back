@@ -31,7 +31,8 @@ export const defaultStore = {
     maritalStatus: "CASADO",
     education: "SUPERIOR COMPLETO",
     profession: "EMPRESARIO",
-    income: "R$ 15.000,00"
+    income: "R$ 15.000,00",
+    photoUrl: ""
   },
   contacts: {
     phones: ["(11) 91234-5678", "(11) 98776-5432", "(11) 95555-1234"],

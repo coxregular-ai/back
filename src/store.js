@@ -29,12 +29,18 @@ export async function readStore() {
 }
 
 function normalizeStore(store) {
+  const indicatorSource = { ...defaultStore.indicators, ...(store.indicators || {}) };
+  const normalizedScore = Number(indicatorSource.score);
   return {
     ...defaultStore,
     ...store,
     profile: { ...defaultStore.profile, ...(store.profile || {}) },
     contacts: { ...defaultStore.contacts, ...(store.contacts || {}), address: normalizeAddress(store.contacts?.address) },
-    indicators: { ...defaultStore.indicators, ...(store.indicators || {}) },
+    indicators: {
+      ...indicatorSource,
+      score: Number.isFinite(normalizedScore) ? Math.max(0, Math.min(1000, normalizedScore)) : defaultStore.indicators.score,
+      scoreMax: 1000
+    },
     credits: { ...defaultStore.credits, ...(store.credits || {}) },
     settings: { ...defaultStore.settings, ...(store.settings || {}) },
     debts: Array.isArray(store.debts) ? store.debts : []
@@ -77,7 +83,13 @@ export async function updateContacts(patch) {
 
 export async function updateIndicators(patch) {
   const store = await readStore();
-  store.indicators = { ...store.indicators, ...patch };
+  const nextScore = Number(patch.score ?? store.indicators.score);
+  store.indicators = {
+    ...store.indicators,
+    ...patch,
+    score: Number.isFinite(nextScore) ? Math.max(0, Math.min(1000, nextScore)) : store.indicators.score,
+    scoreMax: 1000
+  };
   return writeStore(store);
 }
 

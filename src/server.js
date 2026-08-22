@@ -22,7 +22,7 @@ const demoPassword = process.env.DEMO_ADMIN_PASSWORD || "Scoore@2026";
 const adminEmail = process.env.ADMIN_EMAIL || demoEmail;
 
 app.use(cors({ origin: corsOrigin, credentials: true }));
-app.use(express.json({ limit: "4mb" }));
+app.use(express.json({ limit: "12mb" }));
 
 async function authRequired(req, res, next) {
   const auth = req.header("authorization") || "";

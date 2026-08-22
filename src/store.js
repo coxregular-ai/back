@@ -43,7 +43,8 @@ function normalizeStore(store) {
     },
     credits: { ...defaultStore.credits, ...(store.credits || {}) },
     settings: { ...defaultStore.settings, ...(store.settings || {}) },
-    debts: Array.isArray(store.debts) ? store.debts : []
+    debts: Array.isArray(store.debts) ? store.debts : [],
+    snapshots: Array.isArray(store.snapshots) ? store.snapshots : []
   };
 }
 
@@ -153,6 +154,67 @@ export async function updateSettings(payload) {
   const store = await readStore();
   store.settings = { ...store.settings, ...payload };
   return writeStore(store);
+}
+
+function snapshotSummary(snapshot) {
+  return {
+    id: snapshot.id,
+    name: snapshot.name,
+    createdAt: snapshot.createdAt
+  };
+}
+
+function statePayloadForSnapshot(store) {
+  const normalized = normalizeStore(store);
+  const { snapshots, ...payload } = normalized;
+  return payload;
+}
+
+export async function listSnapshots() {
+  const store = await readStore();
+  return (store.snapshots || []).map(snapshotSummary);
+}
+
+export async function createSnapshot(payload = {}) {
+  const store = await readStore();
+  const name = String(payload.name || "").trim();
+  if (!name) {
+    const error = new Error("nome_obrigatorio");
+    error.statusCode = 400;
+    throw error;
+  }
+  const snapshot = {
+    id: randomUUID(),
+    name,
+    createdAt: new Date().toISOString(),
+    payload: statePayloadForSnapshot(store)
+  };
+  store.snapshots = [snapshot, ...(store.snapshots || [])];
+  await writeStore(store);
+  return snapshotSummary(snapshot);
+}
+
+export async function loadSnapshot(snapshotId) {
+  const store = await readStore();
+  const snapshots = store.snapshots || [];
+  const snapshot = snapshots.find((item) => item.id === snapshotId);
+  if (!snapshot) return null;
+  const restoredStore = normalizeStore({
+    ...snapshot.payload,
+    snapshots
+  });
+  await writeStore(restoredStore);
+  return restoredStore;
+}
+
+export async function deleteSnapshot(snapshotId) {
+  const store = await readStore();
+  const snapshots = store.snapshots || [];
+  const nextSnapshots = snapshots.filter((item) => item.id !== snapshotId);
+  if (nextSnapshots.length === snapshots.length) return null;
+  store.snapshots = nextSnapshots;
+  await writeStore(store);
+  return { id: snapshotId };
 }
 
 async function readStoreFromSupabase() {

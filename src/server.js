@@ -4,6 +4,10 @@ import cors from "cors";
 import { isSupabaseAuthEnabled, supabaseAuth } from "./supabase.js";
 import {
   addDebt,
+  createSnapshot,
+  deleteSnapshot,
+  loadSnapshot,
+  listSnapshots,
   readStore,
   updateContacts,
   updateCredits,
@@ -177,6 +181,44 @@ app.patch("/admin/profiles/:profileId/settings", adminRequired, async (req, res,
   }
 });
 
+app.get("/admin/profiles/:profileId/snapshots", adminRequired, async (req, res, next) => {
+  try {
+    res.json(await listSnapshots());
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/admin/profiles/:profileId/snapshots", adminRequired, async (req, res, next) => {
+  try {
+    const snapshot = await createSnapshot(req.body || {});
+    res.status(201).json(snapshot);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/admin/profiles/:profileId/snapshots/:snapshotId/load", adminRequired, async (req, res, next) => {
+  try {
+    const store = await loadSnapshot(req.params.snapshotId);
+    if (!store) return res.status(404).json({ error: "snapshot_nao_encontrado" });
+    const activeDebts = store.debts.filter((debt) => !["Quitada", "Removida", "Excluida"].includes(debt.status));
+    return res.json({ ...store, debts: activeDebts, profile: { ...store.profile, id: req.params.profileId } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/admin/profiles/:profileId/snapshots/:snapshotId", adminRequired, async (req, res, next) => {
+  try {
+    const deleted = await deleteSnapshot(req.params.snapshotId);
+    if (!deleted) return res.status(404).json({ error: "snapshot_nao_encontrado" });
+    return res.json(deleted);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/admin/profiles/:profileId/simulate-removal", adminRequired, (req, res) => {
   const { login, password } = req.body || {};
   if (!login || !password) {
@@ -187,7 +229,8 @@ app.post("/admin/profiles/:profileId/simulate-removal", adminRequired, (req, res
 
 app.use((error, req, res, next) => {
   console.error("api_error", { message: error.message, path: req.path });
-  res.status(500).json({ error: "erro_interno" });
+  const statusCode = error.statusCode || 500;
+  res.status(statusCode).json({ error: statusCode >= 500 ? "erro_interno" : error.message });
 });
 
 const isSmokeTest = process.argv[1]?.endsWith("smoke.js");

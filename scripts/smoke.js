@@ -45,6 +45,23 @@ try {
     headers: auth,
     body: JSON.stringify({ reason: "Quitacao", credentials: { login: "a", pin: "1", password: "b" } })
   });
+  const snapshot = await request("/admin/profiles/demo-profile/snapshots", {
+    method: "POST",
+    headers: auth,
+    body: JSON.stringify({ name: "Smoke snapshot" })
+  });
+  const snapshots = await request("/admin/profiles/demo-profile/snapshots", { headers: auth });
+  if (!snapshots.some((item) => item.id === snapshot.id)) {
+    throw new Error("snapshot not listed");
+  }
+  await request(`/admin/profiles/demo-profile/snapshots/${snapshot.id}/load`, {
+    method: "POST",
+    headers: auth
+  });
+  await request(`/admin/profiles/demo-profile/snapshots/${snapshot.id}`, {
+    method: "DELETE",
+    headers: auth
+  });
   const simulation = await request("/admin/profiles/demo-profile/simulate-removal", {
     method: "POST",
     headers: auth,

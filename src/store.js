@@ -98,6 +98,7 @@ export async function addDebt(payload) {
   const debt = {
     id: randomUUID(),
     title: payload.title || "Divida sem titulo",
+    category: payload.category || "DÍVIDAS",
     amount: payload.amount || "R$ 0,00",
     creditor: payload.creditor || "Credor nao informado",
     dueDate: payload.dueDate || "",

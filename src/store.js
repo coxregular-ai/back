@@ -100,7 +100,7 @@ export async function addDebt(payload) {
     title: payload.title || "Divida sem titulo",
     category: payload.category || "DÍVIDAS",
     amount: payload.amount || "R$ 0,00",
-    creditor: payload.creditor || "Credor nao informado",
+    creditor: payload.creditor || "",
     dueDate: payload.dueDate || "",
     status: payload.status || "Aberta",
     details: payload.details || ""

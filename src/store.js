@@ -96,7 +96,7 @@ export async function updateIndicators(patch) {
 export async function addDebt(payload) {
   const store = await readStore();
   const content = String(payload.content || payload.details || payload.title || "").trim();
-  const title = content.split("\n").map((line) => line.trim()).find(Boolean) || payload.title || "Divida sem titulo";
+  const title = content || payload.title || "Divida sem titulo";
   const debt = {
     id: randomUUID(),
     title,

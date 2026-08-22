@@ -171,11 +171,17 @@ function statePayloadForSnapshot(store) {
 }
 
 export async function listSnapshots() {
+  if (isSupabaseDataEnabled) {
+    return listSnapshotsFromSupabase();
+  }
   const store = await readStore();
   return (store.snapshots || []).map(snapshotSummary);
 }
 
 export async function createSnapshot(payload = {}) {
+  if (isSupabaseDataEnabled) {
+    return createSnapshotInSupabase(payload);
+  }
   const store = await readStore();
   const name = String(payload.name || "").trim();
   if (!name) {
@@ -195,6 +201,9 @@ export async function createSnapshot(payload = {}) {
 }
 
 export async function loadSnapshot(snapshotId) {
+  if (isSupabaseDataEnabled) {
+    return loadSnapshotFromSupabase(snapshotId);
+  }
   const store = await readStore();
   const snapshots = store.snapshots || [];
   const snapshot = snapshots.find((item) => item.id === snapshotId);
@@ -208,6 +217,9 @@ export async function loadSnapshot(snapshotId) {
 }
 
 export async function deleteSnapshot(snapshotId) {
+  if (isSupabaseDataEnabled) {
+    return deleteSnapshotFromSupabase(snapshotId);
+  }
   const store = await readStore();
   const snapshots = store.snapshots || [];
   const nextSnapshots = snapshots.filter((item) => item.id !== snapshotId);
@@ -229,7 +241,7 @@ async function readStoreFromSupabase() {
 }
 
 async function writeStoreToSupabase(nextStore) {
-  const payload = normalizeStore(nextStore);
+  const payload = statePayloadForSnapshot(nextStore);
   const { data, error } = await supabaseData
     .from("app_state")
     .upsert({
@@ -241,4 +253,64 @@ async function writeStoreToSupabase(nextStore) {
     .single();
   if (error) throw error;
   return normalizeStore(data.payload);
+}
+
+async function listSnapshotsFromSupabase() {
+  const { data, error } = await supabaseData
+    .from("app_state_versions")
+    .select("id,name,created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data || []).map((snapshot) => ({
+    id: snapshot.id,
+    name: snapshot.name,
+    createdAt: snapshot.created_at
+  }));
+}
+
+async function createSnapshotInSupabase(payload = {}) {
+  const store = await readStore();
+  const name = String(payload.name || "").trim();
+  if (!name) {
+    const error = new Error("nome_obrigatorio");
+    error.statusCode = 400;
+    throw error;
+  }
+  const { data, error } = await supabaseData
+    .from("app_state_versions")
+    .insert({
+      profile_id: payload.profileId || "demo-profile",
+      name,
+      payload: statePayloadForSnapshot(store)
+    })
+    .select("id,name,created_at")
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    name: data.name,
+    createdAt: data.created_at
+  };
+}
+
+async function loadSnapshotFromSupabase(snapshotId) {
+  const { data, error } = await supabaseData
+    .from("app_state_versions")
+    .select("payload")
+    .eq("id", snapshotId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.payload) return null;
+  return writeStoreToSupabase(data.payload);
+}
+
+async function deleteSnapshotFromSupabase(snapshotId) {
+  const { data, error } = await supabaseData
+    .from("app_state_versions")
+    .delete()
+    .eq("id", snapshotId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+  return data ? { id: data.id } : null;
 }
